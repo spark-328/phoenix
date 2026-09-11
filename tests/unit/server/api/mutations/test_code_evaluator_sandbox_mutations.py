@@ -1524,13 +1524,13 @@ class TestCreateCodeEvaluatorSandboxStrictness:
         joined = "\n".join(err.message for err in result.errors)
         assert "Evaluator language does not match sandbox config language" in joined
 
-    async def test_missing_sandbox_config_row_returns_bad_request_with_id(
+    async def test_missing_sandbox_config_row_returns_not_found_with_id(
         self,
         gql_client: AsyncGraphQLClient,
         seed_sandbox_providers: None,
     ) -> None:
         # Reference an id that no row exists for; the resolver raises
-        # BadRequest("Sandbox config not found: <id>") — stricter than patch's
+        # NotFound("Sandbox config not found: <id>") — stricter than patch's
         # silent no-op, matching evaluators.py:853 runtime semantics.
         absent_id = str(GlobalID("SandboxConfig", "999999"))
         result = await gql_client.execute(
@@ -1545,6 +1545,6 @@ class TestCreateCodeEvaluatorSandboxStrictness:
                 }
             },
         )
-        assert result.errors, "Expected BadRequest when sandbox config row is missing"
+        assert result.errors, "Expected NotFound when sandbox config row is missing"
         joined = "\n".join(err.message for err in result.errors)
         assert "Sandbox config not found" in joined
