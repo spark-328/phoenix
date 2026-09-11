@@ -449,6 +449,7 @@ mutation PatchCodeEvaluator($input: PatchCodeEvaluatorInput!) {
     patchCodeEvaluator(input: $input) {
         evaluator {
             id
+            updatedAt
             ... on CodeEvaluator {
                 name
                 description
