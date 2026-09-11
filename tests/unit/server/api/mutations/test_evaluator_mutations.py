@@ -3557,7 +3557,12 @@ class TestDeleteDatasetEvaluators:
 
         result = await gql_client.execute(
             self._DELETE_MUTATION,
-            {"input": {"datasetEvaluatorIds": [dataset_evaluator_gid]}},
+            {
+                "input": {
+                    "datasetEvaluatorIds": [dataset_evaluator_gid],
+                    "deleteAssociatedPrompt": True,
+                }
+            },
         )
 
         assert result.data and not result.errors
