@@ -27,7 +27,8 @@ from phoenix.db.types.prompts import (
     PromptTools,
     normalize_invocation_parameters_for_write,
 )
-from phoenix.server.api.exceptions import BadRequest
+from phoenix.server.api.exceptions import BadRequest, Conflict
+from phoenix.server.api.helpers.prompt_version_tags import validate_prompt_version_tag_move
 from phoenix.server.api.input_types.PromptVersionInput import (
     validate_invocation_parameters_match_provider,
 )
@@ -550,7 +551,7 @@ class CreatePromptVersionResponseBody(ResponseBody[PromptVersion]):
     description="Create a new version for an existing prompt by identifier.",
     response_description="The created prompt version",
     status_code=201,
-    responses=add_errors_to_responses([404, 422]),
+    responses=add_errors_to_responses([404, 409, 422]),
     response_model_by_alias=True,
     response_model_exclude_defaults=True,
     response_model_exclude_unset=True,
@@ -624,14 +625,17 @@ async def create_prompt_version(
             raise HTTPException(status_code=404, detail="Prompt not found")
 
         for tag in request_body.tags or []:
-            await upsert_prompt_version_tag(
-                session,
-                prompt_id,
-                version_orm.id,
-                tag.name,
-                tag.description,
-                user_id=user_id,
-            )
+            try:
+                await upsert_prompt_version_tag(
+                    session,
+                    prompt_id,
+                    version_orm.id,
+                    tag.name,
+                    tag.description,
+                    user_id=user_id,
+                )
+            except Conflict as error:
+                raise HTTPException(409, str(error)) from error
 
     data = _prompt_version_from_orm_version(version_orm)
     return CreatePromptVersionResponseBody(data=data)
@@ -758,12 +762,14 @@ async def list_prompt_version_tags(
     operation_id="createPromptVersionTag",
     summary="Add tag to prompt version",
     description="Add a new tag to a specific prompt version. Tags help identify and categorize "
-    "different versions of a prompt.",
+    "different versions of a prompt. A tag through which an LLM evaluator records its prompt "
+    "version can only move to a version that evaluator can run.",
     response_description="No content returned on successful tag creation",
     status_code=204,
     responses=add_errors_to_responses(
         [
             404,
+            409,
             422,
         ]
     ),
@@ -806,6 +812,17 @@ async def create_prompt_version_tag(
         prompt_id = await session.scalar(select(models.PromptVersion.prompt_id).filter_by(id=id_))
         if prompt_id is None:
             raise HTTPException(404)
+        existing_tag = await session.scalar(
+            select(models.PromptVersionTag).where(
+                models.PromptVersionTag.prompt_id == prompt_id,
+                models.PromptVersionTag.name == request_body.name,
+            )
+        )
+        if existing_tag is not None and existing_tag.prompt_version_id != id_:
+            try:
+                await validate_prompt_version_tag_move(session, existing_tag, id_)
+            except Conflict as error:
+                raise HTTPException(409, str(error)) from error
         dialect = SupportedSQLDialect(session.bind.dialect.name)
         values = dict(
             name=request_body.name,

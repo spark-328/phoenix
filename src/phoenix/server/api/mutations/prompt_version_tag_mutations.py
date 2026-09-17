@@ -13,6 +13,7 @@ from phoenix.db.types.identifier import Identifier
 from phoenix.server.api.auth import IsLocked, IsNotReadOnly, IsNotViewer
 from phoenix.server.api.context import Context
 from phoenix.server.api.exceptions import BadRequest, Conflict, NotFound
+from phoenix.server.api.helpers.prompt_version_tags import validate_prompt_version_tag_move
 from phoenix.server.api.queries import Query
 from phoenix.server.api.types.node import from_global_id_with_expected_type
 from phoenix.server.api.types.Prompt import Prompt
@@ -133,6 +134,11 @@ async def upsert_prompt_version_tag(
     description: Optional[str] = None,
     user_id: Optional[int] = None,
 ) -> models.PromptVersionTag:
+    """Create or retarget a tag within the caller's transaction.
+
+    A tag that an LLM evaluator runs through only moves to a version the evaluator can run;
+    otherwise Conflict is raised and nothing changes.
+    """
     existing_tag = await session.scalar(
         select(models.PromptVersionTag).where(
             models.PromptVersionTag.prompt_id == prompt_id,
@@ -141,6 +147,8 @@ async def upsert_prompt_version_tag(
     )
 
     if existing_tag:
+        if existing_tag.prompt_version_id != prompt_version_id:
+            await validate_prompt_version_tag_move(session, existing_tag, prompt_version_id)
         existing_tag.prompt_version_id = prompt_version_id
         if description is not None:
             existing_tag.description = description

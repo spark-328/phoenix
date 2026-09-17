@@ -1088,7 +1088,7 @@ export interface paths {
         put?: never;
         /**
          * Add tag to prompt version
-         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt.
+         * @description Add a new tag to a specific prompt version. Tags help identify and categorize different versions of a prompt. A tag through which an LLM evaluator records its prompt version can only move to a version that evaluator can run.
          */
         post: operations["createPromptVersionTag"];
         delete?: never;
@@ -10915,6 +10915,15 @@ export interface operations {
                     "text/plain": string;
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -11167,6 +11176,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

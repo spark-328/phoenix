@@ -1468,3 +1468,16 @@ def pg_total_table_size_stmt() -> TextClause:
     return text(
         f"SELECT coalesce(sum(pg_total_relation_size(c.oid)), 0)\n{_PG_TABLES_IN_PHOENIX_SCHEMA}"
     ).bindparams(nspname=get_env_database_schema())
+
+
+async def llm_evaluators_pinned_by_prompt_version_tag(
+    session: AsyncSession, prompt_version_tag_id: int
+) -> Sequence[models.LLMEvaluator]:
+    """Return the LLM evaluators that record the prompt version they run through this tag."""
+    return (
+        await session.scalars(
+            select(models.LLMEvaluator).where(
+                models.LLMEvaluator.prompt_version_tag_id == prompt_version_tag_id
+            )
+        )
+    ).all()
