@@ -1,5 +1,12 @@
 # Changelog
 
+## [20.14.1](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.14.0...arize-phoenix-v20.14.1) (2026-09-18)
+
+
+### Bug Fixes
+
+* **cost:** update built-in model token prices ([#16262](https://github.com/Arize-ai/phoenix/issues/16262)) ([d5535d4](https://github.com/Arize-ai/phoenix/commit/d5535d473572cf4844c311d79ff04c209d3870bd))
+
 ## [20.14.0](https://github.com/Arize-ai/phoenix/compare/arize-phoenix-v20.13.0...arize-phoenix-v20.14.0) (2026-09-18)
 
 
