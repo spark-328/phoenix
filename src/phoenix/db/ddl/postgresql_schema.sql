@@ -806,7 +806,7 @@ CREATE TABLE public.dataset_evaluators (
     evaluator_id BIGINT NOT NULL,
     name VARCHAR NOT NULL,
     description VARCHAR,
-    output_configs JSONB NOT NULL,
+    output_configs JSONB,
     input_mapping JSONB NOT NULL,
     user_id BIGINT,
     project_id BIGINT NOT NULL,

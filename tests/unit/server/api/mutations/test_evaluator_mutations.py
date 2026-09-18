@@ -207,13 +207,20 @@ class TestDatasetLLMEvaluatorMutations:
             assert db_dataset_evaluator.input_mapping == InputMapping(
                 literal_mapping={}, path_mapping={}
             )
-            assert db_dataset_evaluator.description == "test description"
-            assert db_dataset_evaluator.output_configs is not None
-            assert len(db_dataset_evaluator.output_configs) == 1
-            dataset_eval_config = db_dataset_evaluator.output_configs[0]
-            assert dataset_eval_config.name == "correctness"
-            assert isinstance(dataset_eval_config, CategoricalAnnotationConfig)
-            assert len(dataset_eval_config.values) == 2
+            # The binding stores no override; it inherits the evaluator's settings.
+            assert db_dataset_evaluator.description is None
+            assert db_dataset_evaluator.output_configs is None
+            # An inheriting binding stores SQL NULL, not the JSON value null.
+            assert (
+                await session.scalar(
+                    select(models.DatasetEvaluators.id).where(
+                        models.DatasetEvaluators.id == dataset_evaluator_id,
+                        models.DatasetEvaluators.output_configs.is_(None),
+                    )
+                )
+                == dataset_evaluator_id
+            )
+            assert llm_evaluator.description == "test description"
             assert llm_evaluator.output_configs is not None
             assert len(llm_evaluator.output_configs) == 1
             output_config = llm_evaluator.output_configs[0]
@@ -1173,6 +1180,15 @@ class TestUpdateDatasetLLMEvaluatorMutation:
 
         updated_evaluator = result.data["updateDatasetLlmEvaluator"]["evaluator"]
         assert updated_evaluator["name"] == "updated-evaluator-name"
+        # The binding inherits the evaluator's renamed output, new labels, and direction.
+        assert updated_evaluator["outputConfigs"] == [
+            dict(
+                name="result",
+                description="updated output description",
+                optimizationDirection="MINIMIZE",
+                values=[dict(label="good", score=1), dict(label="bad", score=0)],
+            )
+        ]
         llm_data = updated_evaluator["evaluator"]
         assert llm_data["description"] == "updated description"
         assert llm_data["kind"] == "LLM"
@@ -1189,9 +1205,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.output_configs is not None
-            assert len(db_dataset_evaluator.output_configs) == 1
-            assert db_dataset_evaluator.output_configs[0].name == "result"
+            # Editing the evaluator does not write an override onto the binding.
+            assert db_dataset_evaluator.output_configs is None
             # user_id is None when authentication is disabled
             assert db_dataset_evaluator.user_id is None
             assert db_evaluator.output_configs[0].name == "result"
@@ -2126,7 +2141,8 @@ class TestUpdateDatasetLLMEvaluatorMutation:
                 )
             )
             assert db_dataset_evaluator is not None
-            assert db_dataset_evaluator.description == "seeded description"
+            # The binding's own description override is untouched by evaluator edits.
+            assert db_dataset_evaluator.description == "correctness description"
 
     async def test_update_with_prompt_version_id_same_prompt(
         self,
